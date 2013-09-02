@@ -1,0 +1,12 @@
+*~
+.bundle
+.pryrc
+.rvmrc
+.rbenv-version
+.yardoc
+.DS_Store
+coverage
+doc
+log
+tmp
+vendor
