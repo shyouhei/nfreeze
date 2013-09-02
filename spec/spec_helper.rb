@@ -20,34 +20,23 @@
 # OUT OF  OR IN CONNECTION WITH  THE CODE OR THE  USE OR OTHER  DEALINGS IN THE
 # CODE.
 
+ENV['RACK_ENV'] = 'test'
 require 'bundler/setup'
+require 'simplecov'
 
-begin
-   require 'yard'
-   YARD::Rake::YardocTask.new
-rescue LoadError, NameError
-   # OK, YARD can be absent on non-development mode.
+SimpleCov.start do
+  add_filter 'vendor/'
+  add_filter 'spec/'
 end
 
-begin
-   require 'rspec/core/rake_task'
+require_relative '../lib/nfreeze' # <- need this *after* simplecov
 
-   RSpec::Core::RakeTask.new :spec do |spec|
-      spec.pattern = FileList['spec/**/*_spec.rb']
-   end
+# Requires supporting files with custom matchers and macros, etc,
+# in ./support/ and its subdirectories.
+Dir["#{File.dirname(__FILE__)}/support/**/*.rb"].each {|f| require f}
 
-   task default: :spec
-rescue LoadError, NameError
-   # OK, RSpec can be absent on non-development mode.
-end
+RSpec.configure do |config|
 
-desc "a la rails console"
-task :console do
-   require_relative 'lib/nfreeze'
-   require 'irb'
-   require 'irb/completion'
-   ARGV.clear
-   IRB.start
 end
 
 # 
