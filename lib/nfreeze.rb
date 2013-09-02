@@ -25,17 +25,24 @@ require 'stringio'
 # Adds two methods named nfreeze and thaw to Marshal module.
 #
 # @note  It is worth  mentioning that in spite of its being written using not a
-#        littele  knowledge of  both perl  internals and  ruby internals,  this
+#        little  knowledge of  both  perl internals  and  ruby internals,  this
 #        library  contains  absolutely  0.00   octets  originates  from  either
 #        projects (as of this writing, at  least).  So it is both perl-free and
-#        ruby-free, in  the sense of  licensing.  You should stirctly  stick to
+#        ruby-free, in  the sense of  licensing.  You should strictly  stick to
 #        the terms shown at the top of the source code.
 #
-# @note  Also,  for future updates  of this library, do  not copy & paste other
-#        projects,  including perl  and/or ruby.   That should  contaminate our
-#        license.
+# @note  Also, for future updates  of this library, do  not copy &  paste other
+#        projects,  including  perl  and/or   ruby.   That  should  contaminate
+#        licenses.
 class << Marshal
 
+   # Serialize the given object in a way compatible with perl.
+   # @param  [Object] obj the target object
+   # @return [String] a serialized version of obj.
+   #
+   # Not all kind of objects are serializable.  For instance Classes, which are
+   # serializable  using Marshal.dump,  cannot  be serialized  by this  method,
+   # because it makes no sense to have a class represented in Perl.
    def nfreeze obj
       NFREEZE.new.nfreeze obj
    end
