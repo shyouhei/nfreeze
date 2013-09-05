@@ -128,6 +128,66 @@ describe Marshal do
    end
 
    describe ".thaw" do
+      it "takes one arg" do
+         expect { Marshal.thaw }.to raise_exception(ArgumentError)
+      end
+
+      context "understands what perl generates" do
+         file = nil
+         before:all do
+            file = Tempfile.new ''
+            file.rewind
+            file.write <<-'};'
+               use Storable ();
+               $str = ""; while(<>){$str.=$_};
+               $obj = eval $str;
+               print Storable::nfreeze($obj);
+            };
+            file.close(false) # flush
+         end
+
+         [ # Ruby data vs. Perl data
+           # This is different from above because Perl has f*-ing type system.
+          [ nil           , "\\undef"             ],
+          [ 1             , "\\1"                 ],
+          [ -1            , "\\-1"                ],
+          [ "128"         , "\\128"               ],
+          [ -128          , "\\-128"              ],
+          [ "-129"        , "\\-129"              ],
+          [ 1.0           , "\\1.0"               ],
+          [ "1.5"         , '\\"1.5"'             ],
+          [ ""            , '\\""'                ],
+          [ "\0"          , '\\"\\0"'             ],
+          [ "a"           , '\\"a"'               ],
+          [ "\u3042"      , '\\"\\x{3042}"'       ],
+          [ []            , "[]"                  ],
+          [ [[]]          , "[[]]"                ],
+          [ [{}]          , "[{}]"                ],
+          [ [nil]         , "[undef]"             ],
+          [ [1]           , "[1]"                 ],
+          [ ['']          , '[""]'                ],
+          [ [1.0]         , "[1.0]"               ],
+          [ ["1.5"]       , '[1.5]'               ],
+          [ ["1.5"]       , '["1.5"]'             ],
+          [ ["1.5", "あ"] , '["1.5","\\x{3042}"]' ],
+          [ {}            , "{}"                  ],
+          [ {"1"=>1}      , "{1 => 1}"            ],
+          [ {"1"=>[]}     , "{1 => []}"           ],
+          [ {"1"=>""}     , '{1 => ""}'           ],
+          [ {"1"=>{}}     , '{1 => {}}'           ],
+         ].each do |ruby, perl|
+
+            it "for #{perl.inspect}" do
+               IO.popen ['perl', file.path], "r+" do |fp|
+                  fp.puts perl
+                  fp.close_write
+                  deserialized = Marshal.thaw fp.read
+                  expect(deserialized).to eq(ruby)
+               end
+            end
+
+         end
+      end
    end
 end
 

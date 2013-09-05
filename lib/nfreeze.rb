@@ -39,31 +39,49 @@ class << Marshal
    # Serialize the given object in a way compatible with perl.
    # @param  [Object] obj the target object
    # @return [String] a serialized version of obj.
+   # @raise  [ArgumentError] the obj is not serializable using this method.
    #
    # Not all kind of objects are serializable.  For instance Classes, which are
    # serializable  using Marshal.dump,  cannot  be serialized  by this  method,
    # because it makes no sense to have a class represented in Perl.
+   #
+   # Also for  the sake  of simple implementation  this method  pays relatively
+   # little attention  to make the  generated binary smaller.  There  are cases
+   # where more  compact expressions is  possible.  All generated  binaries are
+   # properly understood by perl though.
    def nfreeze obj
       NFREEZE.new.nfreeze obj
    end
 
+   # Deserialize perl-generated nfreeze strings into ruby objects.
+   # @param  [IO, String] obj the source
+   # @return [Object] deserialized object
+   # @raise  [TypeError] the obj is not deserializable
+   #
+   # Not all kind of inputs are understood.  One big issue is a reference -- in
+   # perl a [] and a \\[] are  different, but in ruby you cannot represent such
+   # difference.
+   #
+   # In practice  you would better think  this method can understand  as far as
+   # JSON or YAML or MessagePack or that sort.
    def thaw obj
-      raise "TBW"
+      THAW.new.thaw obj
    end
 
-   # @api private
    class NFREEZE
-      def initialize
-         buf   = "".encode(Encoding::ASCII_8BIT)
-         @io   = StringIO.new buf
-         @seen = Hash.new
-      end
-
       def nfreeze obj
          @io.rewind
          @io.write "\x5\x8"
          recur obj
          return @io.string
+      end
+
+      private
+
+      def initialize
+         buf   = "".encode Encoding::BINARY
+         @io   = StringIO.new buf
+         @seen = Hash.new
       end
 
       def recur obj, refp = false
@@ -81,33 +99,21 @@ class << Marshal
             end
          end
          case obj
-         when NilClass   then dump_nil
-         when TrueClass  then dump_yes
-         when FalseClass then dump_no
+         when NilClass   then dump 14
+         when TrueClass  then dump 15
+         when FalseClass then dump 16
          when Integer    then dump_int    obj
          when Float      then dump_double obj
          when String     then dump_string obj
-         when Array      then dump_ref if refp; dump_array obj
-         when Hash       then dump_ref if refp; dump_hash  obj
+         when Array      then dump 4 if refp; dump_array obj
+         when Hash       then dump 4 if refp; dump_hash  obj
          else
             raise ArgumentError, "unsupported class encountered: #{obj.inspect}"
          end
       end
 
-      def dump_nil
-         @io.write "\xe"
-      end
-
-      def dump_yes
-         @io.write "\xf"
-      end
-
-      def dump_no
-         @io.write "\x10"
-      end
-
-      def dump_ref
-         @io.write "\x4"
+      def dump x
+         @io.write x.chr
       end
 
       def dump_array obj
@@ -169,6 +175,118 @@ class << Marshal
       end
    end
    private_constant:NFREEZE
+
+   class THAW
+      def thaw obj
+         @io = (obj.to_io rescue StringIO.new(obj.to_str))
+         version_check
+         recur
+      end
+
+      private
+
+      def initialize
+         @io   = nil # assigned later
+         @seen = Hash.new
+      end
+
+      def version_check
+         str = @io.read 2
+         x, minor = str.unpack 'cc'
+         netorder = x & 1
+         major    = x >> 1
+         if major != 2 or minor <= 6
+            raise "unsupported version #{major}.#{minor}"
+         elsif netorder != 1
+            raise "machine-endian unpredictalbe for this input"
+         end
+      end
+
+      @@e = Exception.new
+
+      def recur
+         case type = @io.getbyte
+         when 0x01 then load_binary_large
+         when 0x02 then load_array
+         when 0x03 then load_hash
+         when 0x04 then raise @@e # this is ref
+         when 0x05 then nil
+         when 0x06 then raise "Endian mismatch" # machine-natives
+         when 0x07 then load_double
+         when 0x08 then load_byte
+         when 0x09 then load_int
+         when 0x0a then load_binary_tiny
+         # some cases here...
+         when 0x0e then nil
+         when 0x0f then true
+         when 0x10 then false
+         # some cases here...
+         when 0x17 then load_string_tiny
+         when 0x18 then load_string_large
+         else raise TypeError, "can't understand type ##{type}"
+         end
+      rescue Exception => e
+         if e == @@e
+            retry # ignore refs
+         else
+            raise
+         end
+      end
+
+      def load_byte
+         @io.getbyte - 128
+      end
+
+      def load_int
+         str = @io.read 4
+         len, = str.unpack 'N'
+         len
+      end
+
+      def load_binary len
+         raise "broken #{len}" if len < 0
+         str = @io.read len
+         str.force_encoding Encoding::BINARY
+         str
+      end
+
+      def load_binary_large
+         load_binary load_int
+      end
+
+      def load_binary_tiny
+         load_binary load_byte + 128
+      end
+
+      def load_string len
+         raise "broken #{len}" if len < 0
+         str = @io.read len
+         str.force_encoding Encoding::UTF_8
+         str
+      end
+
+      def load_string_large
+         load_string load_int
+      end
+
+      def load_string_tiny
+         load_string load_byte + 128
+      end
+
+      def load_array
+         load_int.times.map { recur }
+      end
+
+      def load_hash
+         load_int.times.each_with_object Hash.new do |i, ret|
+            # order matters
+            v = recur
+            k = load_binary_large
+            ret.store k, v
+         end
+      end
+   end
+   private_constant:THAW
 end
 
 # 
