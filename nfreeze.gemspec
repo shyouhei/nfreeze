@@ -25,7 +25,7 @@ require 'rubygems'
 Gem::Specification.new do |gem|
    gem.required_ruby_version = '>= 1.9.3'
    gem.name                  = 'nfreeze'
-   gem.version               = '0.0.1'
+   gem.version               = '0.0.2'
    gem.author                = 'Urabe, Shyouhei'
    gem.homepage              = 'https://github.com/shyouhei/nfreeze'
    gem.license               = 'MIT'

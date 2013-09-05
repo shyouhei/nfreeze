@@ -195,7 +195,7 @@ class << Marshal
          x, minor = str.unpack 'cc'
          netorder = x & 1
          major    = x >> 1
-         if major != 2 or minor <= 6
+         if major != 2 or minor < 6
             raise "unsupported version #{major}.#{minor}"
          elsif netorder != 1
             raise "machine-endian unpredictalbe for this input"
