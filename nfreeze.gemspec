@@ -25,7 +25,7 @@ require 'rubygems'
 Gem::Specification.new do |gem|
    gem.required_ruby_version = '>= 1.9.3'
    gem.name                  = 'nfreeze'
-   gem.version               = '0.0.2'
+   gem.version               = '0.0.3'
    gem.author                = 'Urabe, Shyouhei'
    gem.homepage              = 'https://github.com/shyouhei/nfreeze'
    gem.license               = 'MIT'
@@ -39,10 +39,10 @@ Gem::Specification.new do |gem|
 		program can understand Perl-generated nfreeze strings.
    end
 
-   gem.add_development_dependency 'yard',      '~> 0.8'
-   gem.add_development_dependency 'rdoc',      '~> 4.0'
-   gem.add_development_dependency 'rspec',     '~> 2.13'
-   gem.add_development_dependency 'simplecov', '>= 0'
+   gem.add_development_dependency 'yard'
+   gem.add_development_dependency 'rdoc'
+   gem.add_development_dependency 'rspec'
+   gem.add_development_dependency 'simplecov'
    gem.add_development_dependency 'pry'
    gem.add_development_dependency 'rake'
    gem.add_development_dependency 'bundler'
